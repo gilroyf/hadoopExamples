@@ -38,6 +38,7 @@ public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text>
 	    double high  = 0.0;
 	    double low   = 0.0;
 	    double close = 0.0;
+	    double vol = 0.0;
 	    long earliestDate = 0; 
 	    boolean first = false;
 	    for (MapWritable val: values) {
@@ -45,8 +46,12 @@ public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text>
 		Iterator iter = slw.iterator();
 		while (iter.hasNext())
 		{
-			LongWritable time = (LongWritable)iter.next();
-			DoubleWritable price = (DoubleWritable)val.get(time);
+			// get Time, price and volume
+			// end while loop
+//			LongWritable time = (LongWritable)iter.next();
+			LongWritable time = (LongWritable)val.get(new Text("TIME"));
+			DoubleWritable price = (DoubleWritable)val.get(new Text("PRICE"));
+			DoubleWritable volume = val.get(new Text("VOL")) == null ? new DoubleWritable(0.0) : (DoubleWritable)val.get(new Text("VOL"));
 			if (first == false)
 			{
 				open = price.get();
@@ -55,6 +60,7 @@ public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text>
 				close = price.get();
 				earliestDate = time.get();
 				first = true; 
+				vol = volume.get();
 				continue;
 			} else {
 				if (time.get() < earliestDate)
@@ -67,10 +73,11 @@ public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text>
 				}
 				if (price.get() > high) high = price.get();
 				if (price.get() < low) low = price.get();
+				vol = vol + volume.get();
 			}
 		}	
             }
-	    String outputvalue = Double.toString(open)+','+Double.toString(high)+','+Double.toString(low)+','+Double.toString(close);
+	    String outputvalue = Double.toString(open)+','+Double.toString(high)+','+Double.toString(low)+','+Double.toString(close)+','+Double.toString(vol);
             context.write(key, new Text(outputvalue));
        }
 }

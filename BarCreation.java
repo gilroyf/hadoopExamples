@@ -19,6 +19,9 @@ public class BarCreation extends
 private Date LastDate = new Date();
 private double LastPrice = 0.0;
 private boolean LastInitialized = false;
+private final static String ColumnFamily = "TsData";
+private final static String VolumeColumn = "TRCVOL_1";
+private final static String TradePriceColumn = "TRCPRC_1";
 
 @Override
 protected void setup( Context context)
@@ -44,16 +47,28 @@ public void map(ImmutableBytesWritable row, Result columns, Context context) thr
 	long binDate = (tradeTime.getTime())/1000; // get Date object's epoch time in seconds
 	String newkey = split[0] + "|" + Long.toString(binDate);
 	Text outputKey = new Text(newkey);
-	DoubleWritable outputValue = new DoubleWritable();
 	double price=0;
-	// TODO: need to verify if columns is more than 1, if so its
+	double volume = 0;
+	// TODO: need toColumnTrdPrc verify if columns is more than 1, if so its
 	// an error
 	for (KeyValue kv : columns.list()) {
-		price = Bytes.toDouble(kv.getValue());
+		String cf = Bytes.toString(kv.getFamily());
+		String qualifier = Bytes.toString(kv.getQualifier());
+		if (qualifier == TradePriceColumn)
+			price = Bytes.toDouble(kv.getValue());
+		else if (qualifier == VolumeColumn)
+			volume = Bytes.toDouble(kv.getValue());
 	}
-	outputValue.set(price);
+	DoubleWritable doutputValue = new DoubleWritable();
+	LongWritable loutputValue = new LongWritable();
 	MapWritable mv = new MapWritable();
-	mv.put(new LongWritable(tradeTime_l), outputValue);
+	//mv.put(new LongWritable(tradeTime_l), outputValue);
+	loutputValue.set(tradeTime_l);
+	mv.put(new Text("TIME"), loutputValue);
+	doutputValue.set(price);
+	mv.put(new Text("PRICE"), doutputValue);
+	doutputValue.set(volume);
+	mv.put(new Text("VOL"), doutputValue);
 	context.write(outputKey, mv);
 }
 
@@ -64,10 +79,11 @@ public void map(ImmutableBytesWritable row, Result columns, Context context) thr
         conf.addResource(new Path("/etc/hbase/conf/hbase-site.xml"));
 
 	Scan scan = new Scan();
-	String columnFamily = "TsData";
-	String columnTrdPrc= "TRDPRC_1";
+//	String columnFamily = "TsData";
+//	String columnTrdPrc= "TRDPRC_1";
 
-	scan.addColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(columnTrdPrc));
+	scan.addColumn(Bytes.toBytes(ColumnFamily), Bytes.toBytes(TradePriceColumn));
+	scan.addColumn(Bytes.toBytes(ColumnFamily), Bytes.toBytes(VolumeColumn));
 	scan.setStartRow(Bytes.toBytes((new String("MSFT"))));
 	// scan.addColumn(STOCK_DETAILS_COLUMN_FAMILY_AS_BYTES, STOCK_COLUMN_QUALIFIER_AS_BYTES);
 	Job job = new Job(conf);
@@ -75,7 +91,6 @@ public void map(ImmutableBytesWritable row, Result columns, Context context) thr
 
 	String tableName = "TAS";
 	TableMapReduceUtil.initTableMapperJob( Bytes.toBytes(tableName), scan, BarCreation.class, Text.class, MapWritable.class, job);
-	//    TableMapReduceUtil.addHBaseDependencyJars(conf);
 	job.setNumReduceTasks(2);
 	job.setReducerClass(BarCreationReducer.class);
 	job.setMapOutputKeyClass(Text.class);

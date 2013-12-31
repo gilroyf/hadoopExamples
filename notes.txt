@@ -1,0 +1,28 @@
+javac -classpath /usr/lib/hadoop-0.20-mapreduce/hadoop-core.jar:/usr/lib/hadoop/hadoop-common.jar:/usr/lib/hbase/hbase.jar MyJob.java 
+jar cf MyJob.jar *.class 
+javac -source 1.6 -target 1.6 -bootclasspath "/usr/lib/jvm/jre-1.6.0/lib/rt.jar" -classpath /usr/lib/hadoop-0.20-mapreduce/hadoop-core.jar:/usr/lib/hadoop/hadoop-common.jar MyJob.java
+
+
+hadoop jar MyJob.jar MyJob hdfs://localhost/user/Gilroy/Gilroy/cite75_99.txt output
+
+hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -input hdfs://localhost/user/Gilroy/output5/part-00000 -output output_sorted2 -mapper 'sort -r -nk 2' -reducer 'sort -r -nk 2'
+hadoop fs -rm -r hdfs://localhost/user/Gilroy/output5
+
+set HADOOP_USER_NAME=cloud
+
+hbase --config ../TR/hadoop/alpha/conf/hadoop-config shell
+
+Input Formats
+* TextInputFormat
+* KeyValueTextInputFormat
+* SequenceFileInputFormat
+* NLineInputFormat
+
+Output Formats
+* TextOutputFormat
+* SequenceFileOutputFormat
+*  NullOutputFormat
+
+jar tf /usr/lib/hbase/hbase.jar
+javap -classpath /usr/lib/hbase/hbase.jar org.apache.hadoop.hbase.mapreduce.TableMapper 
+hadoop jar HBASETemplate.jar HBASETemplate  outputmr 

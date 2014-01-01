@@ -11,14 +11,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-/*
-import org.apache.hadoop.mapred.MapReduceBase;
-import org.apache.hadoop.mapred.Mapper;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reducer;
-import org.apache.hadoop.mapred.Reporter;
-*/
-
 import java.io.IOException;
 
 public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text> 
@@ -33,7 +25,6 @@ public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text>
         public void reduce(Text key, Iterable<MapWritable> values,
                            Context context) throws IOException, InterruptedException {
                            
-		System.out.println("IN REDUCE -------------------= " + key);
 	    double open  = 0.0;
 	    double high  = 0.0;
 	    double low   = 0.0;
@@ -41,17 +32,14 @@ public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text>
 	    double vol = 0.0;
 	    long earliestDate = 0; 
 	    boolean first = false;
+	    long count = 0;
 	    for (MapWritable val: values) {
-		Set<Writable> slw = val.keySet();
-		Iterator iter = slw.iterator();
-		while (iter.hasNext())
 		{
-			// get Time, price and volume
-			// end while loop
-//			LongWritable time = (LongWritable)iter.next();
+			count++;
 			LongWritable time = (LongWritable)val.get(new Text("TIME"));
 			DoubleWritable price = (DoubleWritable)val.get(new Text("PRICE"));
-			DoubleWritable volume = val.get(new Text("VOL")) == null ? new DoubleWritable(0.0) : (DoubleWritable)val.get(new Text("VOL"));
+			Text volLabel = new Text("VOL");
+			DoubleWritable volume = val.get(new Text(volLabel)) == null ? new DoubleWritable(0.0) : (DoubleWritable)val.get(new Text(volLabel));
 			if (first == false)
 			{
 				open = price.get();
@@ -77,7 +65,7 @@ public class BarCreationReducer extends Reducer<Text, MapWritable, Text, Text>
 			}
 		}	
             }
-	    String outputvalue = Double.toString(open)+','+Double.toString(high)+','+Double.toString(low)+','+Double.toString(close)+','+Double.toString(vol);
+	    String outputvalue = Double.toString(open)+','+Double.toString(high)+','+Double.toString(low)+','+Double.toString(close)+','+Double.toString(vol)+','+Long.toString(count);
             context.write(key, new Text(outputvalue));
        }
 }

@@ -20,8 +20,8 @@ private Date LastDate = new Date();
 private double LastPrice = 0.0;
 private boolean LastInitialized = false;
 private final static String ColumnFamily = "TsData";
-private final static String VolumeColumn = "TRCVOL_1";
-private final static String TradePriceColumn = "TRCPRC_1";
+private final static String VolumeColumn = "TRDVOL_1";
+private final static String TradePriceColumn = "TRDPRC_1";
 
 @Override
 protected void setup( Context context)
@@ -54,49 +54,50 @@ public void map(ImmutableBytesWritable row, Result columns, Context context) thr
 	for (KeyValue kv : columns.list()) {
 		String cf = Bytes.toString(kv.getFamily());
 		String qualifier = Bytes.toString(kv.getQualifier());
-		if (qualifier == TradePriceColumn)
+//		System.out.println("cf = " + cf + "  qualifier " + qualifier);
+		if (qualifier.equals(TradePriceColumn))
 			price = Bytes.toDouble(kv.getValue());
-		else if (qualifier == VolumeColumn)
+		else if (qualifier.equals(VolumeColumn))
 			volume = Bytes.toDouble(kv.getValue());
 	}
-	DoubleWritable doutputValue = new DoubleWritable();
+	System.out.println("new key = " + newkey + " time= " + tradeTime_l + " price = " + price + " vol = " + volume);
+	DoubleWritable doutputValuep = new DoubleWritable();
+	DoubleWritable doutputValuev = new DoubleWritable();
 	LongWritable loutputValue = new LongWritable();
 	MapWritable mv = new MapWritable();
-	//mv.put(new LongWritable(tradeTime_l), outputValue);
 	loutputValue.set(tradeTime_l);
 	mv.put(new Text("TIME"), loutputValue);
-	doutputValue.set(price);
-	mv.put(new Text("PRICE"), doutputValue);
-	doutputValue.set(volume);
-	mv.put(new Text("VOL"), doutputValue);
+	doutputValuep.set(price);
+	mv.put(new Text("PRICE"), doutputValuep);
+	doutputValuev.set(volume);
+	mv.put(new Text("VOL"), doutputValuev);
 	context.write(outputKey, mv);
 }
 
   public static void main(String[] args) throws Exception {
+	String tableName = "TAS";
+	Scan scan = new Scan();
+	scan.addColumn(Bytes.toBytes(ColumnFamily), Bytes.toBytes(TradePriceColumn));
+	scan.addColumn(Bytes.toBytes(ColumnFamily), Bytes.toBytes(VolumeColumn));
+	//scan.setStartRow(Bytes.toBytes((new String("MSFT"))));
+	// scan.addColumn(STOCK_DETAILS_COLUMN_FAMILY_AS_BYTES, STOCK_COLUMN_QUALIFIER_AS_BYTES);
 	Configuration conf = new Configuration();
 	conf.addResource(new Path("/etc/hadoop/conf/core-site.xml"));
         conf.addResource(new Path("/etc/hadoop/conf/hdfs-site.xml"));
         conf.addResource(new Path("/etc/hbase/conf/hbase-site.xml"));
-
-	Scan scan = new Scan();
-//	String columnFamily = "TsData";
-//	String columnTrdPrc= "TRDPRC_1";
-
-	scan.addColumn(Bytes.toBytes(ColumnFamily), Bytes.toBytes(TradePriceColumn));
-	scan.addColumn(Bytes.toBytes(ColumnFamily), Bytes.toBytes(VolumeColumn));
-	scan.setStartRow(Bytes.toBytes((new String("MSFT"))));
-	// scan.addColumn(STOCK_DETAILS_COLUMN_FAMILY_AS_BYTES, STOCK_COLUMN_QUALIFIER_AS_BYTES);
+	conf.set("mapreduce.textoutputformat.seperator", ",");
 	Job job = new Job(conf);
 	job.setJarByClass(BarCreation.class);
 
-	String tableName = "TAS";
 	TableMapReduceUtil.initTableMapperJob( Bytes.toBytes(tableName), scan, BarCreation.class, Text.class, MapWritable.class, job);
-	job.setNumReduceTasks(2);
+	job.setNumReduceTasks(1);
 	job.setReducerClass(BarCreationReducer.class);
 	job.setMapOutputKeyClass(Text.class);
 	job.setMapOutputValueClass(MapWritable.class);
 	job.setOutputKeyClass(Text.class);
 	job.setOutputValueClass(Text.class);
+	job.setOutputFormatClass(org.apache.hadoop.mapreduce.lib.output.TextOutputFormat.class);
+	
 	Path outputPath = new Path(args[0]);
 
 	FileOutputFormat.setOutputPath(job, outputPath);
